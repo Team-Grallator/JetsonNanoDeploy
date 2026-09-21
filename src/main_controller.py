@@ -4667,7 +4667,7 @@ def run_policy_loop(
                 break
 
         safety_check_start = time.monotonic()
-        if pose_test_only and float(pose_test_max_temperature_c) > 0.0:
+        if float(pose_test_max_temperature_c) > 0.0:
             feedback = getattr(estimator, "last_feedback_by_joint", {}) or {}
             hot_joints = []
             for joint_name in motor_layer.active_joints:
@@ -4683,7 +4683,7 @@ def run_policy_loop(
                 ):
                     hot_joints.append((joint_name, temperature))
             if hot_joints:
-                reason = "pose-test motor temperature limit reached: " + ", ".join(
+                reason = "motor temperature limit reached: " + ", ".join(
                     f"{name}={temperature:.1f}C" for name, temperature in hot_joints
                 )
                 print("\nEMERGENCY STOP:", reason)
@@ -4702,10 +4702,13 @@ def run_policy_loop(
                     phase="pose",
                 )
                 break
+        imu_reading = getattr(estimator, "last_imu_reading", None)
+        raw_gyro_b = base_ang_vel_b if imu_reading is None else imu_reading.base_ang_vel_b
         stop, reason = safety.emergency_stop_check(
             projected_gravity_b=projected_gravity_b,
-            base_ang_vel_b=base_ang_vel_b,
-        )
+            base_ang_vel_b=raw_gyro_b,
+        ) 
+
         safety_check_s += time.monotonic() - safety_check_start
         if stop:
             print("\nEMERGENCY STOP:", reason)
@@ -7229,8 +7232,8 @@ def main():
     parser.add_argument(
         "--pose-test-max-temperature-c",
         type=float,
-        default=75.0,
-        help="stop the isolated pose test when any reported motor reaches this temperature; 0 disables",
+        default=70.0,
+        help="stop when any reported motor reaches this temperature in any mode; 0 disables",
     )
     parser.add_argument(
         "--suspension-status-seconds",

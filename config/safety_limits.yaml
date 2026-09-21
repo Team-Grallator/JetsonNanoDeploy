@@ -9,6 +9,7 @@ emergency:
   # 75 deg, roughly 3x the previous gravity-z deviation from upright.
   projected_gravity_gz_min: -0.25
   max_body_ang_vel_norm: 8.0
+  max_body_ang_vel_samples: 3 # The check sees the raw gyro
 
 # Live encoder sanity checks. These are checked before sit, stand, and walking
 # commands are generated. In MIT feedback mode, active joints must report live

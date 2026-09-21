@@ -62,6 +62,8 @@ class SafetyMonitor:
         self.encoder_report_max_joints = 4
         self.projected_gravity_gz_min = -0.75
         self.max_body_ang_vel_norm = 8.0
+        self.max_body_ang_vel_samples = 3
+        self._ang_vel_over_count = 0
         self.reload_joint_limits(force=True)
         self.reload_control_limits(force=True)
         self.reload_safety_limits(force=True)
@@ -154,6 +156,7 @@ class SafetyMonitor:
 
         self.projected_gravity_gz_min = float(emergency["projected_gravity_gz_min"])
         self.max_body_ang_vel_norm = float(emergency["max_body_ang_vel_norm"])
+        self.max_body_ang_vel_samples = int(emergency.get("max_body_ang_vel_samples", 3))
 
         self.encoder_sanity_enabled = bool(encoder.get("enabled", True))
         self.require_feedback_for_motion = bool(
@@ -180,6 +183,8 @@ class SafetyMonitor:
             raise ValueError("emergency.projected_gravity_gz_min must be finite")
         if not np.isfinite(self.max_body_ang_vel_norm) or self.max_body_ang_vel_norm <= 0.0:
             raise ValueError("emergency.max_body_ang_vel_norm must be finite and > 0")
+        if self.max_body_ang_vel_samples < 1:
+            raise ValueError("emergency.max_body_ang_vel_samples must be >= 1")
         if (
             not np.isfinite(self.max_abs_encoder_position_rad)
             or self.max_abs_encoder_position_rad <= 0.0
@@ -273,7 +278,11 @@ class SafetyMonitor:
             return True, f"bad tilt: projected_gravity={projected_gravity_b}"
 
         if np.linalg.norm(base_ang_vel_b) > self.max_body_ang_vel_norm:
-            return True, f"high body angular velocity: {base_ang_vel_b}"
+            self._ang_vel_over_count += 1
+            if self._ang_vel_over_count >= self.max_body_ang_vel_samples:
+                return True, f"high body angular velocity: {base_ang_vel_b}"
+        else:
+            self._ang_vel_over_count = 0
 
         return False, ""
 
